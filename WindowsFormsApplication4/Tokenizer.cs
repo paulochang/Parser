@@ -106,7 +106,7 @@ namespace Parser
         private List<Token> getTokens(string file, MainForm theForm)
         {
             List<Token> result = new List<Token>();
-            string[] fileStrings = file.Split(new char[] { '\r', '\n', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] fileStrings = file.Split(new char[] { '\t', '\r', '\n', ' ' }, StringSplitOptions.RemoveEmptyEntries);
             try
             {
                 foreach (string s in fileStrings)

@@ -17,7 +17,7 @@ namespace Parser
         List<LexerCharacterSet> characterDefinitions = new List<LexerCharacterSet>();
         List<LexerKeyword> keywordDefinitions = new List<LexerKeyword>();
         List<LexerToken> tokenDefinitions = new List<LexerToken>();
-        List<ProductionClass> parserDefinitions = new List<ProductionClass>();
+        List<GrammarRule> parserDefinitions = new List<GrammarRule>();
         LexerCharacterSet whitespaceDefinitions = new LexerCharacterSet();
 
         public Parser(List<Token> theList)
@@ -42,15 +42,22 @@ namespace Parser
             form.appendText("This characterSets where found: \n");
             foreach (LexerCharacterSet theToken in characterDefinitions)
             {
-                form.appendText(theToken.Identifier + " = " + theToken.Regexp + " \n");
+                form.appendText(theToken.Identifier + " = " + LexerGenerationHelper.getReadableRegExp(theToken.Regexp) + " \n");
             }
             form.appendText("This tokens where defined: \n");
             foreach (LexerToken theToken in tokenDefinitions)
             {
-                form.appendText(theToken.Identifier + " = " + theToken.Regexp + " \n");
+                form.appendText(theToken.Identifier + " = " + LexerGenerationHelper.getReadableRegExp(theToken.Regexp) + " \n");
             }
+            form.appendText("This productions where defined: \n");
+            foreach (GrammarRule theToken in parserDefinitions)
+            {
+                form.appendText(theToken + " \n");
+            }
+            if (whitespaceDefinitions.Identifier != null) { 
             form.appendText("This characters are whitespace: \n");
-            form.appendText(whitespaceDefinitions.Identifier + " = " + whitespaceDefinitions.Regexp + " \n");
+            form.appendText("'"+whitespaceDefinitions.Identifier + "' = '" + whitespaceDefinitions.Regexp + "' \n");
+            }
             form.setLexer(characterDefinitions, keywordDefinitions, tokenDefinitions, whitespaceDefinitions);
         }
 
@@ -142,28 +149,32 @@ namespace Parser
                 result = result && term(TokenType.PRODUCTIONS, true);
                 while (term(TokenType.Ident, false))
                 {
-                    ProductionClass tmpProduction = new ProductionClass();
+                    List<GrammarRule> tmpProduction = new List<GrammarRule>();
                     result = result && Production(out tmpProduction);
-                    parserDefinitions.Add(tmpProduction);
+                    foreach (GrammarRule rule in tmpProduction)
+                    {
+                        parserDefinitions.Add(rule);
+                    }
                 }
-                form.appendText("parsed KEYWORDS\n");
+                form.appendText("parsed ParserSpecification\n");
             }
 
-            return term(TokenType.PRODUCTIONS, true);
+            return result;
         }
-        bool Production(out ProductionClass tmpProduction)
+        bool Production(out List<GrammarRule> tmpProductions)
         {
-            tmpProduction = new ProductionClass();
+            tmpProductions = new List<GrammarRule>();
             bool result = true;
-            List<SymbolClass> expression = new List<SymbolClass>();
+            List<List<Lr0Symbol>> expression = new List<List<Lr0Symbol>>();
             string id = "";
-            
+
             if (term(TokenType.Ident, false))
             {
                 id = tokenEnumerator.Current.getValue();
                 result = result && term(TokenType.Ident, true);
             }
-            else {
+            else
+            {
                 result = false;
             }
 
@@ -185,105 +196,157 @@ namespace Parser
             else
                 result = false;
 
-            tmpProduction = new ProductionClass(id, expression);
+            foreach (List<Lr0Symbol> symbolArray in expression)
+            {
+                tmpProductions.Add(new GrammarRule(id, symbolArray.ToArray()));
+            }
 
             result = result && term(TokenType.DOT, true);
             if (result)
             {
-                form.appendText("Parsed Tokendecl \n");
+                form.appendText("Parsed ProductionsDeclaration \n");
             }
             return result;
         }
 
-        bool Expression(out List<SymbolClass> expression)
+        bool Expression(out List<List<Lr0Symbol>> expression)
         {
-            expression = new List<SymbolClass>();
+            expression = new List<List<Lr0Symbol>>();
             bool result = true;
-            result = result && TokenTerm(out regExp);
+            List<List<Lr0Symbol>> tempSymbolArrayList = new List<List<Lr0Symbol>>();
+            result = result && Term(out tempSymbolArrayList);
+            foreach (List<Lr0Symbol> symbolList in tempSymbolArrayList)
+            {
+                expression.Add(symbolList);
+            }
             while (term(TokenType.OR, false))
             {
-                string innerRegExp = "";
-                regExp = regExp + LexerGenerationHelper.getEquivalent('|');
                 result = result && term(TokenType.OR, true)
-                    && TokenTerm(out innerRegExp);
-                regExp = regExp + innerRegExp;
+                    && Term(out tempSymbolArrayList);
+                foreach (List<Lr0Symbol> symbolList in tempSymbolArrayList)
+                {
+                    expression.Add(symbolList);
+                }
             }
             if (result)
             {
-                form.appendText("Parsed TokenExpr \n");
+                form.appendText("Parsed Expression \n");
             }
             return result;
         }
 
-        bool Term(out string regExp)
+        bool Term(out List<List<Lr0Symbol>> symbolList)
         {
-            regExp = "";
+            symbolList = new List<List<Lr0Symbol>>();
             bool result = true;
-            result = result && TokenFactor(out regExp);
+            List<List<Lr0Symbol>> finalSymbolList = new List<List<Lr0Symbol>>();
+            result = result && Factor(out finalSymbolList);
 
             while (term(TokenType.Ident, false) || term(TokenType.String, false) || term(TokenType.Char, false)
                 || term(TokenType.LEFTPAR, false) || term(TokenType.LEFTSQUARE, false) || term(TokenType.LEFTCURLY, false))
             {
-                string innerRegExp = "";
-                result = result && TokenFactor(out innerRegExp);
-                regExp = regExp + innerRegExp;
+                List<List<Lr0Symbol>> innerSymbolList = new List<List<Lr0Symbol>>();
+                result = result && Factor(out innerSymbolList);
+                //regExp = regExp + innerRegExp;
+                List<List<Lr0Symbol>> tempSymbolList = new List<List<Lr0Symbol>>();
+                foreach (List<Lr0Symbol> extList in finalSymbolList)
+                {
+                    foreach (List<Lr0Symbol> innerList in innerSymbolList)
+                    {
+                        List<Lr0Symbol> mergedList = new List<Lr0Symbol>(extList);
+                        foreach (Lr0Symbol sym in innerList)
+                        {
+                            mergedList.Add(sym);
+                        }
+                        tempSymbolList.Add(mergedList);
+                    }
+                }
+                finalSymbolList = tempSymbolList;
             }
+
+            symbolList = finalSymbolList;
             if (result)
             {
-                form.appendText("Parsed TokenTerm \n");
+                form.appendText("Parsed Term \n");
             }
             return result;
         }
 
-        bool Factor(out string regExp)
+        bool Factor(out List<List<Lr0Symbol>> symbolList)
         {
-            regExp = "";
+            symbolList = new List<List<Lr0Symbol>>();
             bool result = true;
             if (term(TokenType.Ident, false) || term(TokenType.String, false) || term(TokenType.Char, false)
-                    || term(TokenType.LEFTPAR, false) || term(TokenType.LEFTSQUARE, false) || term(TokenType.LEFTCURLY, false))
+                    || term(TokenType.LEFTPAR, false) || term(TokenType.LEFTSQUARE, false) || term(TokenType.LEFTCURLY, false) || term(TokenType.SemAction, false))
             {
                 do
                 {
                     if (term(TokenType.Ident, false) || term(TokenType.String, false) || term(TokenType.Char, false))
                     {
-                        result = result && Symbol(out regExp);
+                        Lr0Symbol innerSymbol = new Lr0Symbol();
+                        result = result && ParserSymbol(out innerSymbol);
+                        if (term(TokenType.Attributes, false))
+                        {
+                            result = result && term(TokenType.Attributes, true);
+                        }
+                        List<Lr0Symbol> tempList = new List<Lr0Symbol>();
+                        tempList.Add(innerSymbol);
+                        symbolList.Add(tempList);
+
+                        if (result)
+                        {
+                            form.appendText("Parsed TokenFactor \n");
+                        }
                         return result;
                     }
 
                     if (term(TokenType.LEFTPAR, false))
                     {
-                        string innerRegexp = "";
                         result = result && term(TokenType.LEFTPAR, true)
-                            && TokenExpr(out innerRegexp)
+                            && Expression(out symbolList)
                             && term(TokenType.RIGHTPAR, true);
-                        regExp = LexerGenerationHelper.getEquivalent('(') + innerRegexp + LexerGenerationHelper.getEquivalent(')');
+
+                        if (result)
+                        {
+                            form.appendText("Parsed TokenFactor \n");
+                        }
                         return result;
                     }
 
                     if (term(TokenType.LEFTSQUARE, false))
                     {
-                        string innerRegexp = "";
                         result = result && term(TokenType.LEFTSQUARE, true)
-                            && TokenExpr(out innerRegexp)
+                            && Expression(out symbolList)
                             && term(TokenType.RIGHTSQUARE, true);
-                        regExp = LexerGenerationHelper.getEquivalent('(') + LexerGenerationHelper.getEquivalent('(')
-                            + innerRegexp
-                            + LexerGenerationHelper.getEquivalent(')') + LexerGenerationHelper.getEquivalent('|')
-                            + LexerGenerationHelper.getEquivalent('3') + LexerGenerationHelper.getEquivalent(')');
+
+                        if (result)
+                        {
+                            form.appendText("Parsed TokenFactor \n");
+                        }
                         return result;
                     }
 
                     if (term(TokenType.LEFTCURLY, false))
                     {
-                        string innerRegexp = "";
                         result = result && term(TokenType.LEFTCURLY, true)
-                            && TokenExpr(out innerRegexp)
+                            && Expression(out symbolList)
                             && term(TokenType.RIGHTCURLY, true);
 
-                        regExp = LexerGenerationHelper.getEquivalent('(')
-                            + innerRegexp
-                            + LexerGenerationHelper.getEquivalent(')') + LexerGenerationHelper.getEquivalent('*');
+                        if (result)
+                        {
+                            form.appendText("Parsed TokenFactor \n");
+                        }
                         return result;
+                    }
+
+                    if (term(TokenType.SemAction, false))
+                    {
+                        result = result && term(TokenType.SemAction, true);
+
+                        if (result)
+                        {
+                            form.appendText("Parsed TokenFactor \n");
+                        }
                     }
                 }
                 while (term(TokenType.Ident, false) || term(TokenType.String, false) || term(TokenType.Char, false)
@@ -295,11 +358,116 @@ namespace Parser
             }
             if (result)
             {
-                form.appendText("Parsed tokenfactor \n");
+                form.appendText("Parsed TokenFactor \n");
             }
             return result;
         }
 
+        bool ParserSymbol(out Lr0Symbol theSymbol)
+        {
+            theSymbol = new Lr0Symbol();
+            bool result = true;
+            if (term(TokenType.Ident, false) || term(TokenType.String, false) || term(TokenType.Char, false))
+            {
+                string currentString = tokenEnumerator.Current.getValue();
+                if (term(TokenType.Ident, false))
+                {
+                    bool isToken = false;
+                    foreach (LexerToken t in tokenDefinitions)
+                    {
+                        if (currentString == t.Identifier)
+                        {
+                            theSymbol = new Lr0Symbol(t.Identifier, t.Identifier);
+                            isToken = true;
+                        }
+                    }
+                    if (!isToken)
+                    {
+                        if (currentString == "$")
+                            theSymbol = Lr0GenerationHelper.getEndSymbol();
+                        else if (currentString == "3")
+                            theSymbol = Lr0GenerationHelper.getEpsylonSymbol();
+                        else
+                            theSymbol = new Lr0Symbol(currentString);
+                    }
+                    result = result && term(TokenType.Ident, true);
+                    if (result)
+                    {
+                        form.appendText("Parsed ParseSymbol \n");
+                    }
+                    return result;
+                }
+
+                if (term(TokenType.String, false))
+                {
+
+                    string tmpString = LexerGenerationHelper.getStringValue(currentString);
+                    if (tmpString == "$")
+                    {
+                        theSymbol = Lr0GenerationHelper.getEndSymbol();
+                    }
+                    else if (tmpString == "3")
+                    {
+                        theSymbol = Lr0GenerationHelper.getEpsylonSymbol();
+                    }
+                    else
+                    {
+                        List<LexerToken> oldDefinitions = new List<LexerToken>(tokenDefinitions);
+                        tokenDefinitions = new List<LexerToken>();
+                        LexerToken tmpToken = new LexerToken();
+                        theSymbol = new Lr0Symbol(currentString);
+                        tokenDefinitions.Add(new LexerToken(Lr0GenerationHelper.getSafeName(tmpString), tmpString));
+                        foreach (LexerToken oldToken in oldDefinitions)
+                        {
+                            tokenDefinitions.Add(oldToken);
+                        }
+                        theSymbol = new Lr0Symbol(Lr0GenerationHelper.getSafeName(tmpString), tmpString);
+                    }
+                    result = result && term(TokenType.String, true);
+                    if (result)
+                    {
+                        form.appendText("Parsed ParseSymbol \n");
+                    }
+                    return result;
+                }
+
+                if (term(TokenType.Char, false))
+                {
+                    string tmpString = LexerGenerationHelper.getCharValue(currentString).ToString();
+                    if (tmpString == "$")
+                    {
+                        theSymbol = Lr0GenerationHelper.getEndSymbol();
+                    }
+                    else if (tmpString == "3")
+                    {
+                        theSymbol = Lr0GenerationHelper.getEpsylonSymbol();
+                    }
+                    else
+                    { 
+                    List<LexerToken> oldDefinitions = new List<LexerToken>(tokenDefinitions);
+                    tokenDefinitions = new List<LexerToken>();
+                    tokenDefinitions.Add(new LexerToken(Lr0GenerationHelper.getSafeName(tmpString), tmpString));
+                    foreach (LexerToken oldToken in oldDefinitions)
+                    {
+                        tokenDefinitions.Add(oldToken);
+                    }
+                    theSymbol = new Lr0Symbol(Lr0GenerationHelper.getSafeName(tmpString), tmpString);
+                    }
+                    result = result && term(TokenType.Char, true);
+                    if (result)
+                    {
+                        form.appendText("Parsed ParseSymbol \n");
+                    }
+                    return result;
+                }
+            }
+            else
+            {
+                return false;
+            }
+            
+            return result;
+        }
 
         bool SetDecl(out LexerCharacterSet tmpToken)
         {
@@ -654,11 +822,11 @@ namespace Parser
             }
             return result;
         }
-        
+
         bool WhiteSpaceDecl()
         {
             HashSet<char> whiteSet = new HashSet<char>();
-            bool result = term(TokenType.IGNORE, true) && Set(out whiteSet);;
+            bool result = term(TokenType.IGNORE, true) && Set(out whiteSet); ;
             whitespaceDefinitions = new LexerCharacterSet("whitespace", LexerGenerationHelper.getSetRegExp(whiteSet), whiteSet);
             return result;
         }

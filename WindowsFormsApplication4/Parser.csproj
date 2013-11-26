@@ -80,13 +80,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Action.cs" />
     <Compile Include="DFA.cs" />
+    <Compile Include="GrammarRule.cs" />
     <Compile Include="Graph.cs" />
     <Compile Include="Infix2PostfixHelper.cs" />
+    <Compile Include="Item.cs" />
     <Compile Include="LexerCharacterSet.cs" />
     <Compile Include="LexerGenerationHelper.cs" />
     <Compile Include="LexerKeyword.cs" />
     <Compile Include="LexerToken.cs" />
+    <Compile Include="Lr0GenerationHelper.cs" />
     <Compile Include="Lr0State.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
@@ -95,12 +99,12 @@
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Parser.cs" />
-    <Compile Include="ProductionClass.cs" />
+    <Compile Include="ParsingTable.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RegExpEvaluator.cs" />
-    <Compile Include="subsetConstructor.cs" />
-    <Compile Include="SymbolClass.cs" />
+    <Compile Include="SubsetConstructor.cs" />
+    <Compile Include="Lr0Symbol.cs" />
     <Compile Include="ThompsonHelper.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="TokenDefinition.cs" />

@@ -15,17 +15,17 @@ namespace Parser
         DFA DfaAutomaton;
 
         ThompsonHelper automatonConstructor;
-        subsetConstructor DfaConstructor;
+        SubsetConstructor DfaConstructor;
 
         public RegExpEvaluator(string regexp)
         {
             infix2postfix = new Infix2PostfixHelper();
             automatonConstructor = new ThompsonHelper();
-            DfaConstructor = new subsetConstructor();
+            DfaConstructor = new SubsetConstructor();
             String expression = infix2postfix.converter(regexp);
             Graph final;
             automaton = automatonConstructor.getAutomaton(expression, out final);
-            DfaConstructor = new subsetConstructor();
+            DfaConstructor = new SubsetConstructor();
             DfaAutomaton = DfaConstructor.BuildDfa(automaton, final);
         }
 

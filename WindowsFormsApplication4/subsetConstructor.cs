@@ -7,7 +7,7 @@ using input = System.Char;
 
 namespace Parser
 {
-    class subsetConstructor
+    class SubsetConstructor
     {
         private int num = 1;
 

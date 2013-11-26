@@ -8,6 +8,30 @@ namespace Parser
 {
     static class LexerGenerationHelper
     {
+        private static string getOrigin(char c)
+        {
+            switch (c)
+            {
+                case 'ü': return "3"; //case '3': return "ü";
+                case 'ä': return "|"; //case '|': return "ä";
+                case 'ÿ': return "."; //case '.': return "ÿ";
+                case 'þ': return "*"; //case '*': return "þ";
+                case 'ý': return "("; //case '(': return "ý";
+                case 'û': return ")"; //case ')': return "û";
+                default: return c.ToString();
+            }
+        }
+
+        public static string getReadableRegExp(string s)
+        {
+            string tempString = "";
+            foreach (char c in s)
+            {
+                tempString += getOrigin(c);
+            }
+            return tempString;
+        }
+
         public static string getStringValue(string unprocessedString)
         {
             return unprocessedString.Replace("\"", "");
@@ -59,10 +83,14 @@ namespace Parser
 
         public static string getAny()
         {
+
             string result = getEquivalent('('); // (
             for (int i = 32; i <= 126; i++)
             {
+                if (i!=126)
                     result += ((char)i).ToString() + getEquivalent('|'); // char + |
+                else
+                    result += ((char)i).ToString(); // char + |
             }
             result += getEquivalent(')'); // " " + )
             return result;
@@ -113,7 +141,7 @@ namespace Parser
         }
         public static string getSetRegExp(HashSet<char> set)
         {
-            string result="";
+            string result = "";
             List<char> tmpList = new List<char>();
             foreach (char c in set)
             {
